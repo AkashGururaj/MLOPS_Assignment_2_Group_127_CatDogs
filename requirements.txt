@@ -1,0 +1,8 @@
+torch
+torchvision
+fastapi
+uvicorn
+pillow
+mlflow
+kagglehub
+dvc

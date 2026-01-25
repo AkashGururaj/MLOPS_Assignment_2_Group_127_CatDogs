@@ -1,0 +1,21 @@
+# Virtual environment
+venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# ML / runtime
+mlruns/
+data/raw/*
+data/processed/*
+
+!data/raw/**/*.dvc
+!data/processed/**/*.dvc
+!data/*.dvc
+
+# OS
+.DS_Store
+
+.dvcignore
+
