@@ -1,3 +1,30 @@
-/config.local
-/tmp
-/cache
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+*.egg-info/
+
+# Data
+data/
+mlruns/
+predictions/
+logs/
+
+# DVC
+*.dvc
+.dvc/
+
+# PyTorch
+models/*.pt
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Docker
+*.log
+*.pid

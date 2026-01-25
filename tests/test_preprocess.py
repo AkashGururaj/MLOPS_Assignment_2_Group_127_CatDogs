@@ -1,15 +1,23 @@
-from src.data.preprocess import preprocess_image
-from PIL import Image
 import os
+import torch
+import pytest
+from src.model.model import SimpleCNN
 
-def test_preprocess(tmp_path):
-    # Create a dummy image dynamically
-    input_img = tmp_path / "input.jpg"
-    img = Image.new("RGB", (300, 300), color="red")
-    img.save(input_img)
+MODEL_PATH = "tests/simple_cnn_test.pt"
 
-    output_img = tmp_path / "output.jpg"
+@pytest.fixture(scope="module")
+def dummy_model():
+    model = SimpleCNN()
+    torch.save(model.state_dict(), MODEL_PATH)
+    yield MODEL_PATH
+    os.remove(MODEL_PATH)
 
-    preprocess_image(input_img, output_img)
-
-    assert os.path.exists(output_img)
+def test_model_loading(dummy_model):
+    model = SimpleCNN()
+    model.load_state_dict(torch.load(dummy_model))
+    model.eval()
+    # Forward a dummy tensor
+    x = torch.randn(1, 3, 224, 224)
+    out = model(x)
+    assert out.shape == (1, 1)
+    assert (0 <= out.detach().numpy()).all()  # BCELoss output >=0

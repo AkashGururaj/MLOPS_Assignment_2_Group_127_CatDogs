@@ -130,8 +130,5 @@ def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
 # Main Execution
 # ===============================
 if __name__ == "__main__":
-    # Track raw dataset with DVC
     track_raw_with_dvc()
-
-    # Preprocess data
     preprocess_data(small_dataset=SMALL_DATASET)
