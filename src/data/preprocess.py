@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 # ===============================
 RAW_DIR = "data/raw/PetImages"
 PROCESSED_DIR = "data/processed"
-SMALL_DATASET = False          # True to use small subset
+SMALL_DATASET = True           # True to use small subset
 SMALL_SAMPLE_SIZE = 500        # Total images if using small dataset
 CLASSES = ["Cat", "Dog"]
 
@@ -34,29 +34,31 @@ def track_raw_with_dvc(raw_dir=RAW_DIR):
     except subprocess.CalledProcessError:
         print("[WARNING] Raw data tracking already exists or git commit failed. Skipping.")
 
-
 def create_small_dataset(raw_dir=RAW_DIR, sample_size=SMALL_SAMPLE_SIZE):
-    """Create a small dataset subset for faster training."""
+    """Create a small dataset subset (~sample_size images total)."""
     small_raw_dir = raw_dir + "_small"
+    if os.path.exists(small_raw_dir):
+        shutil.rmtree(small_raw_dir)  # remove if exists
     os.makedirs(small_raw_dir, exist_ok=True)
 
     for cls in CLASSES:
-        os.makedirs(os.path.join(small_raw_dir, cls), exist_ok=True)
+        cls_dir = os.path.join(small_raw_dir, cls)
+        os.makedirs(cls_dir, exist_ok=True)
         images = [f for f in os.listdir(os.path.join(raw_dir, cls)) if f.lower().endswith((".jpg", ".png"))]
         selected = random.sample(images, min(len(images), sample_size // len(CLASSES)))
         for img in selected:
-            shutil.copy2(os.path.join(raw_dir, cls, img), os.path.join(small_raw_dir, cls, img))
+            shutil.copy2(os.path.join(raw_dir, cls, img), os.path.join(cls_dir, img))
 
     print(f"[INFO] Small dataset created at {small_raw_dir} ({sample_size} images total).")
     return small_raw_dir
 
-
 def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.8, val_ratio=0.1, small_dataset=SMALL_DATASET):
-    """
-    Preprocess dataset:
-      - Optionally reduce to small subset
-      - Split into train/val/test folders
-    """
+    """Preprocess dataset: optionally reduce size and split into train/val/test."""
+    
+    # Clear processed folder if exists
+    if os.path.exists(processed_dir):
+        shutil.rmtree(processed_dir)
+    
     if small_dataset:
         raw_dir = create_small_dataset(raw_dir)
 
@@ -87,11 +89,12 @@ def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.
 
     print(f"[INFO] Data preprocessing complete! Train/Val/Test folders created at: {processed_dir}")
 
-
+# ===============================
+# DataLoaders
+# ===============================
 def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
     """Return PyTorch DataLoaders with optional augmentation."""
     
-    # Training transforms
     if augment:
         train_tfms = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -107,27 +110,23 @@ def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
             transforms.ToTensor()
         ])
 
-    # Validation / Test transforms
     test_tfms = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
 
-    # Datasets
     train_ds = datasets.ImageFolder(os.path.join(processed_dir, "train"), transform=train_tfms)
     val_ds = datasets.ImageFolder(os.path.join(processed_dir, "val"), transform=test_tfms)
     test_ds = datasets.ImageFolder(os.path.join(processed_dir, "test"), transform=test_tfms)
 
-    # DataLoaders
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
 
-
 # ===============================
-# Main Execution
+# Main
 # ===============================
 if __name__ == "__main__":
     track_raw_with_dvc()
