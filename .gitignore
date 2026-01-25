@@ -1,21 +1,42 @@
-# Virtual environment
-venv/
 
-# Python
-__pycache__/
-*.pyc
-
-# ML / runtime
-mlruns/
-data/raw/*
-data/processed/*
 
 !data/raw/**/*.dvc
 !data/processed/**/*.dvc
 !data/*.dvc
 
-# OS
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+*.egg-info/
+
+# Data
+data/*
+mlruns/
+predictions/
+logs/
+
+# DVC
+*.dvc
+.dvc/
+
+# PyTorch
+models/*.pt
+
+# IDEs
+.vscode/
+.idea/
 .DS_Store
 
-.dvcignore
+# Docker
+*.log
+*.pid
+
+# DVC
+.dvc/cache/
+.dvc/tmp/
 
