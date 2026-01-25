@@ -20,9 +20,7 @@ mlruns/
 predictions/
 logs/
 
-# DVC
-*.dvc
-.dvc/
+
 
 # PyTorch
 models/*.pt
