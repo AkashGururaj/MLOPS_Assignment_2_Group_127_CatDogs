@@ -1,4 +1,7 @@
 import torch
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.model.model import SimpleCNN
 
 MODEL_PATH = "models/simple_cnn.pt"
