@@ -1,33 +1,35 @@
 # ===============================
-# Base image
+# Base image (small + stable)
 # ===============================
-FROM python:3.11-bullseye
+FROM python:3.10-slim
 
 # ===============================
 # Set working directory
 # ===============================
 WORKDIR /app
 
-# Install system dependencies
+# ===============================
+# Install minimal system deps
+# ===============================
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
-    libatlas-base-dev \
-    libffi-dev \
-    libssl-dev \
-    python3-dev \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
-COPY requirements.txt . 
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+# ===============================
+# Install Python deps
+# ===============================
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
 # ===============================
-# Copy project files
+# Copy source only
 # ===============================
-COPY . .
+COPY src ./src
+COPY app.py .
 
 # ===============================
 # Expose FastAPI port
@@ -35,6 +37,6 @@ COPY . .
 EXPOSE 8000
 
 # ===============================
-# Start FastAPI with Uvicorn
+# Run FastAPI
 # ===============================
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
