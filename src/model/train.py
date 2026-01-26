@@ -5,7 +5,8 @@ from torch.optim import Adam
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import mlflow
-
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from src.data.preprocess import prepare_data
 from src.model.model import SimpleCNN
 
@@ -149,8 +150,8 @@ def train_model(
 # ===============================
 if __name__ == "__main__":
     train_model(
-        epochs=20,        # for full dataset
-        batch_size=32,    # adjust if running on CPU
+        epochs=10,        
+        batch_size=32,    
         learning_rate=1e-3,
         augment=True
     )

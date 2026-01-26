@@ -33,12 +33,13 @@ def track_raw_with_dvc(raw_dir=RAW_DIR):
 
 def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.8, val_ratio=0.1):
     """
-    Split dataset into train/val/test folders with exact ratios: 80:10:10.
-    Won't delete processed folder if it exists.
+    Split dataset into train/val/test folders (full dataset, 80:10:10 split).
+    Always rebuilds processed folder from scratch.
     """
+    # Delete processed folder if exists
     if os.path.exists(processed_dir):
-        print(f"[INFO] Processed folder {processed_dir} already exists. Skipping preprocessing.")
-        return
+        shutil.rmtree(processed_dir)
+        print(f"[INFO] Deleted existing processed folder")
 
     os.makedirs(processed_dir, exist_ok=True)
     for split in ["train", "val", "test"]:
@@ -51,7 +52,7 @@ def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.
         random.shuffle(images)
         n = len(images)
         train_end = int(n * train_ratio)
-        val_end = train_end + int(n * val_ratio)  # remaining goes to test automatically
+        val_end = train_end + int(n * val_ratio)
 
         for i, img in enumerate(images):
             src = os.path.join(cls_path, img)
@@ -105,9 +106,9 @@ def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
 # Combined Helper
 # ===============================
 def prepare_data(batch_size=32, augment=True):
-    """Track raw data, preprocess (if needed), and return DataLoaders."""
+    """Track raw data, preprocess full dataset, and return DataLoaders."""
     track_raw_with_dvc()
-    preprocess_data()  # will skip if folder exists
+    preprocess_data()  # always rebuild full dataset
     return get_loaders(batch_size=batch_size, augment=augment)
 
 # ===============================

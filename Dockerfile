@@ -1,35 +1,28 @@
 # ===============================
 # Base image
 # ===============================
-FROM python:3.11-slim
+FROM python:3.11-bullseye
 
 # ===============================
 # Set working directory
 # ===============================
 WORKDIR /app
 
-# ===============================
 # Install system dependencies
-# Needed for PyTorch, FastAPI, and other packages
-# ===============================
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
+    g++ \
+    libatlas-base-dev \
     libffi-dev \
     libssl-dev \
-    libopenblas-dev \
-    curl \
-    git \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ===============================
-# Copy requirements and install Python packages
-# ===============================
-COPY requirements.txt .
-
-# Upgrade pip and install dependencies
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Copy and install Python dependencies
+COPY requirements.txt . 
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ===============================
 # Copy project files
