@@ -30,7 +30,7 @@ RUN pip install --upgrade pip \
 # Copy source code
 # ===============================
 COPY src ./src
-COPY api ./api
+COPY app ./app
 
 # ===============================
 # Expose FastAPI port

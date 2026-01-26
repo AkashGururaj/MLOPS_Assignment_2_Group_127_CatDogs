@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  api:
+  app:
     build: .
     image: cats-dogs-api:latest
     container_name: cats_dogs_api
