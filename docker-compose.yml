@@ -3,25 +3,8 @@ version: "3.9"
 services:
   api:
     build: .
-    container_name: cats_vs_dogs_api
+    image: cats-dogs-api:latest
+    container_name: cats_dogs_api
     ports:
       - "8000:8000"
-    volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-      - ./predictions:/app/predictions
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-    depends_on:
-      - mlflow
-
-  mlflow:
-    image: mlflow/mlflow:2.7.0
-    container_name: mlflow_server
-    ports:
-      - "5000:5000"
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - MLFLOW_ARTIFACT_ROOT=/mlruns
-    volumes:
-      - ./mlruns:/mlruns
+    restart: always

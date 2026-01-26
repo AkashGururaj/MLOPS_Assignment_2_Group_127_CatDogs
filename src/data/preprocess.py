@@ -1,9 +1,9 @@
 import os
 import shutil
 import random
+import subprocess
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-import subprocess
 
 # ===============================
 # Config
@@ -11,111 +11,86 @@ import subprocess
 RAW_DIR = "data/raw/PetImages"
 PROCESSED_DIR = "data/processed"
 CLASSES = ["Cat", "Dog"]
+SAMPLES_PER_CLASS = 250   # 250 Cat + 250 Dog = 500 total
 
 # ===============================
-# Preprocessing Functions
+# DVC Tracking
 # ===============================
-def track_raw_with_dvc(raw_dir=RAW_DIR):
-    """Track raw data with DVC if not already tracked."""
+def track_raw_with_dvc():
     try:
-        dvc_file = os.path.join(raw_dir, "PetImages.dvc")
-        if not os.path.exists(dvc_file):
-            subprocess.run(["dvc", "add", raw_dir], check=True)
-            subprocess.run(["git", "add", f"{raw_dir}.dvc"], check=True)
-            subprocess.run(["git", "commit", "-m", f"Track raw data {raw_dir} with DVC"], check=True)
-            print(f"[INFO] Raw data {raw_dir} is now tracked by DVC.")
+        if not os.path.exists(f"{RAW_DIR}.dvc"):
+            subprocess.run(["dvc", "add", RAW_DIR], check=True)
+            subprocess.run(["git", "add", f"{RAW_DIR}.dvc"], check=True)
+            subprocess.run(["git", "commit", "-m", "Track raw data with DVC"], check=True)
+            print("[INFO] Raw data tracked with DVC")
         else:
-            print(f"[INFO] Raw data {raw_dir} is already tracked by DVC.")
-    except FileNotFoundError:
-        print("[WARNING] DVC or Git not found. Skipping raw data tracking.")
-    except subprocess.CalledProcessError:
-        print("[WARNING] DVC stage already exists or git commit failed. Skipping.")
+            print("[INFO] Raw data already tracked with DVC")
+    except Exception:
+        print("[WARNING] DVC/Git not available — skipping tracking")
 
-def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.8, val_ratio=0.1):
-    """
-    Split dataset into train/val/test folders (full dataset, 80:10:10 split).
-    Always rebuilds processed folder from scratch.
-    """
-    # Delete processed folder if exists
-    if os.path.exists(processed_dir):
-        shutil.rmtree(processed_dir)
-        print(f"[INFO] Deleted existing processed folder")
+# ===============================
+# Simple Preprocessing (500 imgs)
+# ===============================
+def preprocess_data():
+    if os.path.exists(PROCESSED_DIR):
+        shutil.rmtree(PROCESSED_DIR)
 
-    os.makedirs(processed_dir, exist_ok=True)
     for split in ["train", "val", "test"]:
         for cls in CLASSES:
-            os.makedirs(os.path.join(processed_dir, split, cls), exist_ok=True)
+            os.makedirs(os.path.join(PROCESSED_DIR, split, cls), exist_ok=True)
 
     for cls in CLASSES:
-        cls_path = os.path.join(raw_dir, cls)
-        images = [f for f in os.listdir(cls_path) if f.lower().endswith((".jpg", ".png"))]
+        cls_path = os.path.join(RAW_DIR, cls)
+        images = [f for f in os.listdir(cls_path) if f.lower().endswith(".jpg")]
         random.shuffle(images)
+        images = images[:SAMPLES_PER_CLASS]
+
         n = len(images)
-        train_end = int(n * train_ratio)
-        val_end = train_end + int(n * val_ratio)
+        train_end = int(0.8 * n)
+        val_end = int(0.9 * n)
 
         for i, img in enumerate(images):
             src = os.path.join(cls_path, img)
             if i < train_end:
-                dst = os.path.join(processed_dir, "train", cls, img)
+                split = "train"
             elif i < val_end:
-                dst = os.path.join(processed_dir, "val", cls, img)
+                split = "val"
             else:
-                dst = os.path.join(processed_dir, "test", cls, img)
+                split = "test"
+
+            dst = os.path.join(PROCESSED_DIR, split, cls, img)
             shutil.copy2(src, dst)
 
-    print(f"[INFO] Preprocessing done! Train/Val/Test split created at: {processed_dir}")
-    print(f"Split ratios: Train {train_ratio*100}%, Val {val_ratio*100}%, Test {100 - int(train_ratio*100 + val_ratio*100)}%")
+    print("[INFO] Dataset prepared with 500 samples")
 
 # ===============================
-# DataLoader Function
+# DataLoaders
 # ===============================
-def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
-    """Return PyTorch DataLoaders for train/val/test."""
-    if augment:
-        train_tfms = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(20),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-            transforms.RandomAffine(degrees=0, translate=(0.1,0.1), scale=(0.8,1.2)),
-            transforms.ToTensor()
-        ])
-    else:
-        train_tfms = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor()
-        ])
-
-    test_tfms = transforms.Compose([
+def get_loaders(batch_size=32):
+    tfm = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
 
-    train_ds = datasets.ImageFolder(os.path.join(processed_dir, "train"), transform=train_tfms)
-    val_ds   = datasets.ImageFolder(os.path.join(processed_dir, "val"), transform=test_tfms)
-    test_ds  = datasets.ImageFolder(os.path.join(processed_dir, "test"), transform=test_tfms)
+    train_ds = datasets.ImageFolder(f"{PROCESSED_DIR}/train", transform=tfm)
+    val_ds   = datasets.ImageFolder(f"{PROCESSED_DIR}/val", transform=tfm)
+    test_ds  = datasets.ImageFolder(f"{PROCESSED_DIR}/test", transform=tfm)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    val_loader   = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
-    test_loader  = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
-
-    return train_loader, val_loader, test_loader
-
-# ===============================
-# Combined Helper
-# ===============================
-def prepare_data(batch_size=32, augment=True):
-    """Track raw data, preprocess full dataset, and return DataLoaders."""
-    track_raw_with_dvc()
-    preprocess_data()  # always rebuild full dataset
-    return get_loaders(batch_size=batch_size, augment=augment)
+    return (
+        DataLoader(train_ds, batch_size=batch_size, shuffle=True),
+        DataLoader(val_ds, batch_size=batch_size),
+        DataLoader(test_ds, batch_size=batch_size)
+    )
 
 # ===============================
-# Main (for testing)
+# Main
 # ===============================
 if __name__ == "__main__":
-    train_loader, val_loader, test_loader = prepare_data(batch_size=32, augment=True)
-    print(f"[INFO] Train samples: {len(train_loader.dataset)}")
-    print(f"[INFO] Val samples: {len(val_loader.dataset)}")
-    print(f"[INFO] Test samples: {len(test_loader.dataset)}")
+    track_raw_with_dvc()
+    preprocess_data()
+
+    train_loader, val_loader, test_loader = get_loaders()
+
+    print(f"Train: {len(train_loader.dataset)}")
+    print(f"Val:   {len(val_loader.dataset)}")
+    print(f"Test:  {len(test_loader.dataset)}")

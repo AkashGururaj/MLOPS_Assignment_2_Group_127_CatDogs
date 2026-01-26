@@ -1,23 +1,9 @@
-import os
 import torch
-import pytest
-from src.model.model import SimpleCNN
+from src.data.preprocess import prepare_data
 
-MODEL_PATH = "tests/simple_cnn_test.pt"
-
-@pytest.fixture(scope="module")
-def dummy_model():
-    model = SimpleCNN()
-    torch.save(model.state_dict(), MODEL_PATH)
-    yield MODEL_PATH
-    os.remove(MODEL_PATH)
-
-def test_model_loading(dummy_model):
-    model = SimpleCNN()
-    model.load_state_dict(torch.load(dummy_model))
-    model.eval()
-    # Forward a dummy tensor
-    x = torch.randn(1, 3, 224, 224)
-    out = model(x)
-    assert out.shape == (1, 1)
-    assert (0 <= out.detach().numpy()).all()  # BCELoss output >=0
+def test_prepare_data_loaders():
+    train_loader, val_loader, test_loader = prepare_data(batch_size=2, augment=False)
+    images, labels = next(iter(train_loader))
+    assert isinstance(images, torch.Tensor)
+    assert images.shape[1:] == (3, 224, 224)
+    assert ((labels == 0) | (labels == 1)).all()
