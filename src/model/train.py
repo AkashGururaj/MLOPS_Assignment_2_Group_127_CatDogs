@@ -176,7 +176,7 @@ def train_model(
 # ===============================
 if __name__ == "__main__":
     train_model(
-        epochs=3,           # smaller dataset → fewer epochs
+        epochs=10,           # smaller dataset → fewer epochs
         batch_size=16,      # smaller batch for CPU
         learning_rate=1e-3,
         augment=True
