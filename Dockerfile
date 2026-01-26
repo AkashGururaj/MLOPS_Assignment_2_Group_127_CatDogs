@@ -11,6 +11,9 @@ WORKDIR /app
 # ===============================
 # Install minimal system deps
 # ===============================
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
