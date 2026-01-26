@@ -1,23 +1,20 @@
 import os
-import random
 import shutil
-import subprocess
+import random
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import subprocess
 
 # ===============================
-# Configurable Paths & Parameters
+# Config
 # ===============================
 RAW_DIR = "data/raw/PetImages"
 PROCESSED_DIR = "data/processed"
-SMALL_DATASET = True           # True to use small subset
-SMALL_SAMPLE_SIZE = 500        # Total images if using small dataset
 CLASSES = ["Cat", "Dog"]
 
 # ===============================
-# Helper Functions
+# Preprocessing Functions
 # ===============================
-
 def track_raw_with_dvc(raw_dir=RAW_DIR):
     """Track raw data with DVC if not already tracked."""
     try:
@@ -32,50 +29,29 @@ def track_raw_with_dvc(raw_dir=RAW_DIR):
     except FileNotFoundError:
         print("[WARNING] DVC or Git not found. Skipping raw data tracking.")
     except subprocess.CalledProcessError:
-        print("[WARNING] Raw data tracking already exists or git commit failed. Skipping.")
+        print("[WARNING] DVC stage already exists or git commit failed. Skipping.")
 
-def create_small_dataset(raw_dir=RAW_DIR, sample_size=SMALL_SAMPLE_SIZE):
-    """Create a small dataset subset (~sample_size images total)."""
-    small_raw_dir = raw_dir + "_small"
-    if os.path.exists(small_raw_dir):
-        shutil.rmtree(small_raw_dir)  # remove if exists
-    os.makedirs(small_raw_dir, exist_ok=True)
-
-    for cls in CLASSES:
-        cls_dir = os.path.join(small_raw_dir, cls)
-        os.makedirs(cls_dir, exist_ok=True)
-        images = [f for f in os.listdir(os.path.join(raw_dir, cls)) if f.lower().endswith((".jpg", ".png"))]
-        selected = random.sample(images, min(len(images), sample_size // len(CLASSES)))
-        for img in selected:
-            shutil.copy2(os.path.join(raw_dir, cls, img), os.path.join(cls_dir, img))
-
-    print(f"[INFO] Small dataset created at {small_raw_dir} ({sample_size} images total).")
-    return small_raw_dir
-
-def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.8, val_ratio=0.1, small_dataset=SMALL_DATASET):
-    """Preprocess dataset: optionally reduce size and split into train/val/test."""
-    
-    # Clear processed folder if exists
+def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.8, val_ratio=0.1):
+    """
+    Split dataset into train/val/test folders with exact ratios: 80:10:10.
+    Won't delete processed folder if it exists.
+    """
     if os.path.exists(processed_dir):
-        shutil.rmtree(processed_dir)
-    
-    if small_dataset:
-        raw_dir = create_small_dataset(raw_dir)
+        print(f"[INFO] Processed folder {processed_dir} already exists. Skipping preprocessing.")
+        return
 
-    # Create processed folders
     os.makedirs(processed_dir, exist_ok=True)
     for split in ["train", "val", "test"]:
         for cls in CLASSES:
             os.makedirs(os.path.join(processed_dir, split, cls), exist_ok=True)
 
-    # Split images
     for cls in CLASSES:
         cls_path = os.path.join(raw_dir, cls)
         images = [f for f in os.listdir(cls_path) if f.lower().endswith((".jpg", ".png"))]
         random.shuffle(images)
         n = len(images)
         train_end = int(n * train_ratio)
-        val_end = train_end + int(n * val_ratio)
+        val_end = train_end + int(n * val_ratio)  # remaining goes to test automatically
 
         for i, img in enumerate(images):
             src = os.path.join(cls_path, img)
@@ -87,14 +63,14 @@ def preprocess_data(raw_dir=RAW_DIR, processed_dir=PROCESSED_DIR, train_ratio=0.
                 dst = os.path.join(processed_dir, "test", cls, img)
             shutil.copy2(src, dst)
 
-    print(f"[INFO] Data preprocessing complete! Train/Val/Test folders created at: {processed_dir}")
+    print(f"[INFO] Preprocessing done! Train/Val/Test split created at: {processed_dir}")
+    print(f"Split ratios: Train {train_ratio*100}%, Val {val_ratio*100}%, Test {100 - int(train_ratio*100 + val_ratio*100)}%")
 
 # ===============================
-# DataLoaders
+# DataLoader Function
 # ===============================
 def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
-    """Return PyTorch DataLoaders with optional augmentation."""
-    
+    """Return PyTorch DataLoaders for train/val/test."""
     if augment:
         train_tfms = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -116,18 +92,29 @@ def get_loaders(processed_dir=PROCESSED_DIR, batch_size=32, augment=True):
     ])
 
     train_ds = datasets.ImageFolder(os.path.join(processed_dir, "train"), transform=train_tfms)
-    val_ds = datasets.ImageFolder(os.path.join(processed_dir, "val"), transform=test_tfms)
-    test_ds = datasets.ImageFolder(os.path.join(processed_dir, "test"), transform=test_tfms)
+    val_ds   = datasets.ImageFolder(os.path.join(processed_dir, "val"), transform=test_tfms)
+    test_ds  = datasets.ImageFolder(os.path.join(processed_dir, "test"), transform=test_tfms)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+    val_loader   = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
+    test_loader  = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
 
 # ===============================
-# Main
+# Combined Helper
+# ===============================
+def prepare_data(batch_size=32, augment=True):
+    """Track raw data, preprocess (if needed), and return DataLoaders."""
+    track_raw_with_dvc()
+    preprocess_data()  # will skip if folder exists
+    return get_loaders(batch_size=batch_size, augment=augment)
+
+# ===============================
+# Main (for testing)
 # ===============================
 if __name__ == "__main__":
-    track_raw_with_dvc()
-    preprocess_data(small_dataset=SMALL_DATASET)
+    train_loader, val_loader, test_loader = prepare_data(batch_size=32, augment=True)
+    print(f"[INFO] Train samples: {len(train_loader.dataset)}")
+    print(f"[INFO] Val samples: {len(val_loader.dataset)}")
+    print(f"[INFO] Test samples: {len(test_loader.dataset)}")

@@ -1,58 +1,31 @@
 import os
-import subprocess
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-import mlflow
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import sys
+import mlflow
 
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
+from src.data.preprocess import prepare_data
 from src.model.model import SimpleCNN
-from src.data.preprocess import get_loaders, preprocess_data, RAW_DIR, PROCESSED_DIR, SMALL_DATASET
 
-# Use GPU if available
+# ===============================
+# Device
+# ===============================
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-# ===============================
-# DVC Preprocessing Helper
-# ===============================
-def run_dvc_preprocessing():
-    """Run DVC pipeline to ensure processed data is up-to-date."""
-    try:
-        raw_dvc_file = os.path.join(RAW_DIR, "PetImages.dvc")
-        if not os.path.exists(raw_dvc_file):
-            print("[INFO] Tracking raw data with DVC...")
-            subprocess.run(["dvc", "add", RAW_DIR], check=True)
-            subprocess.run(["git", "add", f"{RAW_DIR}.dvc"], check=True)
-            subprocess.run(["git", "commit", "-m", "Track raw data with DVC"], check=True)
-
-        print("[INFO] Running DVC pipeline to preprocess data...")
-        subprocess.run(["dvc", "repro"], check=True)
-
-    except FileNotFoundError:
-        print("[WARNING] DVC or Git not found. Make sure data is preprocessed manually.")
-    except subprocess.CalledProcessError:
-        print("[WARNING] DVC stage failed or already up-to-date. Skipping repro.")
+print(f"[INFO] Using device: {device}")
 
 # ===============================
 # Training Function
 # ===============================
 def train_model(
-    epochs=3,            # Reduce for small dataset / CPU
-    batch_size=16,       # Reduce batch size for faster CPU training
+    epochs=20,
+    batch_size=32,
     learning_rate=1e-3,
     augment=True
 ):
-    # Ensure data is preprocessed
-    run_dvc_preprocessing()
-    preprocess_data(small_dataset=SMALL_DATASET)  # auto handles small/full dataset
-
-    # Load DataLoaders
-    train_loader, val_loader, _ = get_loaders(batch_size=batch_size, augment=augment)
+    # Prepare DataLoaders (80:10:10 split)
+    train_loader, val_loader, test_loader = prepare_data(batch_size=batch_size, augment=augment)
 
     # Initialize model, loss, optimizer
     model = SimpleCNN().to(device)
@@ -76,9 +49,9 @@ def train_model(
         })
 
         for epoch in range(epochs):
+            # --- Training ---
             model.train()
             running_loss, correct, total = 0, 0, 0
-
             for images, labels in train_loader:
                 images, labels = images.to(device), labels.to(device).float().unsqueeze(1)
                 optimizer.zero_grad()
@@ -97,7 +70,7 @@ def train_model(
             train_losses.append(train_loss)
             train_accs.append(train_acc)
 
-            # Validation
+            # --- Validation ---
             model.eval()
             val_loss, correct_val, total_val = 0, 0, 0
             with torch.no_grad():
@@ -126,13 +99,13 @@ def train_model(
                   f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | "
                   f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
-        # Save model
+        # --- Save model ---
         os.makedirs("models", exist_ok=True)
         model_path = "models/simple_cnn.pt"
         torch.save(model.state_dict(), model_path)
         mlflow.log_artifact(model_path)
 
-        # Plot Loss & Accuracy
+        # --- Plot Loss & Accuracy ---
         plt.figure()
         plt.plot(range(1, epochs+1), train_losses, label="Train Loss")
         plt.plot(range(1, epochs+1), val_losses, label="Val Loss")
@@ -151,7 +124,7 @@ def train_model(
         plt.savefig("accuracy_curve.png")
         mlflow.log_artifact("accuracy_curve.png")
 
-        # Confusion matrix
+        # --- Confusion Matrix ---
         all_labels, all_preds = [], []
         with torch.no_grad():
             for images, labels in val_loader:
@@ -176,8 +149,8 @@ def train_model(
 # ===============================
 if __name__ == "__main__":
     train_model(
-        epochs=10,           # smaller dataset → fewer epochs
-        batch_size=16,      # smaller batch for CPU
+        epochs=20,        # for full dataset
+        batch_size=32,    # adjust if running on CPU
         learning_rate=1e-3,
         augment=True
     )
