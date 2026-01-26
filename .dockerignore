@@ -1,0 +1,9 @@
+data/
+.dvc/
+.mlflow/
+mlruns/
+models/
+__pycache__/
+.git/
+.gitignore
+*.log
