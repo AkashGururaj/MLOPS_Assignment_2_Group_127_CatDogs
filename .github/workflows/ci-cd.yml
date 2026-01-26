@@ -1,10 +1,11 @@
 name: CI/CD Pipeline
 
+
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   pull_request:
-    branches: [main]
+    branches: ["main"]
 
 jobs:
   ci:
@@ -15,7 +16,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
@@ -23,14 +24,14 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements_api.txt
+          pip install --no-cache-dir -r requirements_api.txt
 
       - name: Run Unit Tests
         run: |
-          pytest tests/ || echo "Tests failed, but continuing..."
+          pytest tests/ || echo "[WARNING] Tests failed, but continuing..."
 
   cd:
-    name: Continuous Deployment
+    name: Continuous Deployment (Simulated)
     runs-on: ubuntu-latest
     needs: ci
 
@@ -38,14 +39,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Docker Build (Local Only)
+      - name: Docker Build Placeholder
         run: |
-          echo "[INFO] Placeholder: Docker build will be run locally"
-         
+          echo "[INFO] Docker build will be executed locally — skipping on GitHub Actions"
 
-      - name: Smoke Test (Simulated)
+      - name: Simulated Smoke Test
         run: |
           echo "[INFO] Simulated smoke tests — no real deployment"
           echo "curl http://localhost:8000/health || true"
           echo "curl -X POST -F 'file=@tests/test_img.jpg' http://localhost:8000/predict || true"
-          echo "[INFO] Smoke tests simulated"
+          echo "[INFO] Smoke tests simulated successfully"
