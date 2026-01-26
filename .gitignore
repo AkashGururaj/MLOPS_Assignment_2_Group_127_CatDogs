@@ -22,8 +22,7 @@ logs/
 
 
 
-# PyTorch
-models/*.pt
+
 
 # IDEs
 .vscode/
