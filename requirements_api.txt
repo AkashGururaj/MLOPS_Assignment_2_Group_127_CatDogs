@@ -3,3 +3,6 @@ torchvision
 fastapi
 uvicorn[standard]
 Pillow
+pandas
+mlflow
+python-multipart

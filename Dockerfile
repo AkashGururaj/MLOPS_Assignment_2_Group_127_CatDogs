@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ===============================
 # Install Python dependencies
 # ===============================
-COPY requirements_api.txt .
+COPY requirements_api.txt ./
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements_api.txt
 
@@ -30,7 +30,9 @@ RUN pip install --upgrade pip \
 # Copy source code
 # ===============================
 COPY src ./src
-COPY app ./app
+COPY app/app.py ./app.py
+COPY model_inference.py ./model_inference.py
+COPY models ./models
 
 # ===============================
 # Expose FastAPI port
@@ -40,4 +42,4 @@ EXPOSE 8000
 # ===============================
 # Run FastAPI
 # ===============================
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

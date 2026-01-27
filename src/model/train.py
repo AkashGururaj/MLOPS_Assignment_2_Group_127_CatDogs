@@ -7,23 +7,30 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import mlflow
 import sys
 
+# Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from src.data.preprocess import prepare_data
+
+# Import the existing functions
+from src.data.preprocess import get_loaders, preprocess_data
 from src.model.model import SimpleCNN
 
-# ===============================
+
 # Device
-# ===============================
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"[INFO] Using device: {device}")
 
-# ===============================
-# Train Function with MLflow
-# ===============================
-def train_model(epochs=5, batch_size=32, lr=1e-3):
-    # Load only 500 images
-    train_loader, val_loader, _ = prepare_data(batch_size=batch_size, augment=False)
 
+# Train Function with MLflow
+
+def train_model(epochs=5, batch_size=32, lr=1e-3):
+    # Preprocess data (prepare train/val/test splits)
+    preprocess_data()
+
+    # Get data loaders
+    train_loader, val_loader, _ = get_loaders(batch_size=batch_size)
+
+    # Initialize model, loss, optimizer
     model = SimpleCNN().to(device)
     criterion = nn.BCELoss()
     optimizer = Adam(model.parameters(), lr=lr)
@@ -137,8 +144,8 @@ def train_model(epochs=5, batch_size=32, lr=1e-3):
 
     return model
 
-# ===============================
+
 # Main
-# ===============================
+
 if __name__ == "__main__":
     train_model(epochs=5, batch_size=32, lr=1e-3)
