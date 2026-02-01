@@ -34,6 +34,8 @@ COPY app/app.py ./app.py
 COPY model_inference.py ./model_inference.py
 COPY models ./models
 
+RUN mkdir -p /app/logs
+
 # ===============================
 # Expose FastAPI port
 # ===============================
